@@ -1,76 +1,76 @@
 <?php
-if (isset($_POST['Email'])) {
+/*
+This first bit sets the email address that you want the form to be submitted to.
+You will need to change this value to a valid email address that you can access.
+*/
+$webmaster_email = "name@example.com";
 
-    // EDIT THE 2 LINES BELOW AS REQUIRED
-    $email_to = "andreysek@icloud.com";
-    $email_subject = "New form submissions";
+/*
+This bit sets the URLs of the supporting pages.
+If you change the names of any of the pages, you will need to change the values here.
+*/
+$feedback_page = "feedback_form.html";
+$error_page = "error_message.html";
+$thankyou_page = "thank_you.html";
 
-    function problem($error)
-    {
-        echo "We are very sorry, but there were error(s) found with the form you submitted. ";
-        echo "These errors appear below.<br><br>";
-        echo $error . "<br><br>";
-        echo "Please go back and fix these errors.<br><br>";
-        die();
-    }
+/*
+This next bit loads the form field data into variables.
+If you add a form field, you will need to add it here.
+*/
+$email_address = $_REQUEST['email_address'] ;
+$comments = $_REQUEST['comments'] ;
+$first_name = $_REQUEST['first_name'] ;
+$msg =
+"First Name: " . $first_name . "\r\n" .
+"Email: " . $email_address . "\r\n" .
+"Comments: " . $comments ;
 
-    // validation expected data exists
-    if (
-        !isset($_POST['Name']) ||
-        !isset($_POST['Email']) ||
-        !isset($_POST['Message'])
-    ) {
-        problem('We are sorry, but there appears to be a problem with the form you submitted.');
-    }
+/*
+The following function checks for email injection.
+Specifically, it checks for carriage returns - typically used by spammers to inject a CC list.
+*/
+function isInjected($str) {
+	$injections = array('(\n+)',
+	'(\r+)',
+	'(\t+)',
+	'(%0A+)',
+	'(%0D+)',
+	'(%08+)',
+	'(%09+)'
+	);
+	$inject = join('|', $injections);
+	$inject = "/$inject/i";
+	if(preg_match($inject,$str)) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
 
-    $name = $_POST['Name']; // required
-    $email = $_POST['Email']; // required
-    $message = $_POST['Message']; // required
+// If the user tries to access this script directly, redirect them to the feedback form,
+if (!isset($_REQUEST['email_address'])) {
+header( "Location: $feedback_page" );
+}
 
-    $error_message = "";
-    $email_exp = '/^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,4}$/';
+// If the form fields are empty, redirect to the error page.
+elseif (empty($first_name) || empty($email_address)) {
+header( "Location: $error_page" );
+}
 
-    if (!preg_match($email_exp, $email)) {
-        $error_message .= 'The Email address you entered does not appear to be valid.<br>';
-    }
+/*
+If email injection is detected, redirect to the error page.
+If you add a form field, you should add it here.
+*/
+elseif ( isInjected($email_address) || isInjected($first_name)  || isInjected($comments) ) {
+header( "Location: $error_page" );
+}
 
-    $string_exp = "/^[A-Za-z .'-]+$/";
+// If we passed all previous tests, send the email then redirect to the thank you page.
+else {
 
-    if (!preg_match($string_exp, $name)) {
-        $error_message .= 'The Name you entered does not appear to be valid.<br>';
-    }
+	mail( "$webmaster_email", "Feedback Form Results", $msg );
 
-    if (strlen($message) < 2) {
-        $error_message .= 'The Message you entered do not appear to be valid.<br>';
-    }
-
-    if (strlen($error_message) > 0) {
-        problem($error_message);
-    }
-
-    $email_message = "Form details below.\n\n";
-
-    function clean_string($string)
-    {
-        $bad = array("content-type", "bcc:", "to:", "cc:", "href");
-        return str_replace($bad, "", $string);
-    }
-
-    $email_message .= "Name: " . clean_string($name) . "\n";
-    $email_message .= "Email: " . clean_string($email) . "\n";
-    $email_message .= "Message: " . clean_string($message) . "\n";
-
-    // create email headers
-    $headers = 'From: ' . $email . "\r\n" .
-        'Reply-To: ' . $email . "\r\n" .
-        'X-Mailer: PHP/' . phpversion();
-    @mail($email_to, $email_subject, $email_message, $headers);
-?>
-
-    <!-- include your success message below -->
-
-    Thank you for contacting us. We will be in touch with you very soon.
-
-<?php
+	header( "Location: $thankyou_page" );
 }
 ?>
